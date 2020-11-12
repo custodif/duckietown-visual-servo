@@ -572,7 +572,12 @@ class Simulator(gym.Env):
                 except NotInLane:
                     continue
                 M = self.accept_start_angle_deg
-                ok = -M < lp.angle_deg < +M
+                # ok = -M < lp.angle_deg < +M
+
+                angle = np.rad2deg(propose_angle)
+                if angle > 179:
+                    angle -= 360
+                ok = -M < angle < +M
                 if not ok:
                     continue
                 # Found a valid initial pose
