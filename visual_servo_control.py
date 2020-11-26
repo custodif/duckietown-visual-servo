@@ -150,7 +150,7 @@ def update(dt):
     #                               (8, 3), centers, detection)
     #     im = Image.fromarray(obs)
     #     im.save("circle_grid.png")
-
+    print('hello')
 
     # found_object, relative_pose = method_that_do_vision_processing(im)
 
