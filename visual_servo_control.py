@@ -143,7 +143,7 @@ def update(dt):
                                                flags=cv2.CALIB_CB_SYMMETRIC_GRID,
                                                blobDetector=detector)
 
-    print(detection)
+
     # Only for debugging, slows things down considerably and is not necessary
     # if detection:
     #     cv2.drawChessboardCorners(obs,
