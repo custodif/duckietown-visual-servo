@@ -13,7 +13,7 @@ import gym
 import numpy as np
 import pyglet
 from pyglet.window import key
-
+import cv2
 from gym_duckietown.envs import DuckietownEnv
 
 # from experiments.utils import save_img
@@ -84,6 +84,12 @@ env.unwrapped.window.push_handlers(key_handler)
 # TODO we should implement things in a class and put this in class attribute later
 trajectory = None
 
+# TODO these were the default values in vehicle detection package, so if we need to change something
+params = cv2.SimpleBlobDetector_Params()
+params.minArea = 5
+params.minDistBetweenBlobs = 1
+detector = cv2.SimpleBlobDetector_create(params)
+
 
 def update(dt):
     """
@@ -132,6 +138,20 @@ def update(dt):
     im = Image.fromarray(obs)
     # TODO im is a np.array of the image, get relative pose from that it could also be obtained using a built-in package
 
+    (detection, centers) = cv2.findCirclesGrid(obs,
+                                               patternSize=(8, 3),
+                                               flags=cv2.CALIB_CB_SYMMETRIC_GRID,
+                                               blobDetector=detector)
+
+    print(detection)
+    # Only for debugging, slows things down considerably and is not necessary
+    # if detection:
+    #     cv2.drawChessboardCorners(obs,
+    #                               (8, 3), centers, detection)
+    #     im = Image.fromarray(obs)
+    #     im.save("circle_grid.png")
+
+
     # found_object, relative_pose = method_that_do_vision_processing(im)
 
     # This is a temporary workaround to test only trajectory
@@ -149,7 +169,7 @@ def update(dt):
     relative_angle = goal_angle - cur_angle_deg
     relative_pose = [relative_position, relative_angle]
     np.set_printoptions(precision=2)
-    print("cur_pose:", cur_pose, "rel_pose:", relative_pose)
+    #print("cur_pose:", cur_pose, "rel_pose:", relative_pose)
     # TODO update trajectory if object is in field of view
     #if found_object:
     #    trajectory = get_trajectory(relative_pose)
