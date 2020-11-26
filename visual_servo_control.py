@@ -144,13 +144,69 @@ def update(dt):
                                                blobDetector=detector)
 
 
+
+
+    def calc_circle_pattern( height, width):
+        """
+        Calculates the physical locations of each dot in the pattern.
+        Args:
+            height (`int`): number of rows in the pattern
+            width (`int`): number of columns in the pattern
+        """
+        # check if the version generated before is still valid, if not, or first time called, create
+
+        circlepattern_dist = 0.0125
+        circlepattern = np.zeros([height * width, 3])
+        for i in range(0, width):
+            for j in range(0, height):
+                circlepattern[i + j * width, 0] = circlepattern_dist * i - \
+                                                       circlepattern_dist * (width - 1) / 2
+                circlepattern[i + j * width, 1] = circlepattern_dist * j - \
+                                                       circlepattern_dist * (height - 1) / 2
+        return circlepattern
+
+    camera_matrix = [
+        305.5718893575089,
+        0,
+        303.0797142544728,
+        0,
+        308.8338858195428,
+        231.8845403702499,
+        0,
+        0,
+        1,
+    ]
+    camera_matrix = np.reshape(camera_matrix, (3, 3))
+
+    distortion_coefs = [-0.2, 0.0305, 0.0005859930422629722, -0.0006697840226199427, 0]
+
+    distortion_coefs = np.reshape(distortion_coefs, (1, 5))
+
+
+    # detection = vehicle_centers_msg.detection.data
+    if detection:
+        object_points = calc_circle_pattern(3, 8)
+        image_points = centers[:, 0, :]
+        # print(f'image_points shape : {image_points.shape}')
+        # print(f'image_object  : {object_points.shape}')
+
+        # for i in range(len(points)):
+        #     points[i] = np.array([vehicle_centers_msg.corners[i].x, vehicle_centers_msg.corners[i].y])
+
+        success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=object_points,
+                                                                    imagePoints=image_points,
+                                                                    cameraMatrix=camera_matrix,
+                                                                    distCoeffs=np.array([0,0,0,0,0]))
+        print(f'rotation : {np.rad2deg(rotation_vector)}')
+
+
+
     # Only for debugging, slows things down considerably and is not necessary
     # if detection:
     #     cv2.drawChessboardCorners(obs,
     #                               (8, 3), centers, detection)
     #     im = Image.fromarray(obs)
     #     im.save("circle_grid.png")
-    print('hello')
 
     # found_object, relative_pose = method_that_do_vision_processing(im)
 
