@@ -52,6 +52,70 @@ env.reset()
 env.render()
 
 
+class Trajectory:
+    def __init__(self):
+        self.distance_to_target = np.inf
+        self.angle_to_target = 0.0
+        self.angle_to_goal_pose = 0.0
+        self.last_update_time = None
+        self.last_commands = None
+        self.done = False
+        self.target_in_sight = False
+
+    def update(self, relative_pose):
+        if not self.done:
+            x_dist = relative_pose[0][2]
+            y_dist = relative_pose[0][0]
+            self.distance_to_target = np.sqrt(x_dist**2 + y_dist**2)
+            print(x_dist, y_dist, self.distance_to_target)
+            # TODO real angle is 90 - arctan(y_dist / x_dist)
+
+            # Temporary solution before conversion of relative pose
+            #self.angle_to_target = relative_pose[1]
+            # if x_dist > 0:
+            #     self.angle_to_target = -90 + relative_pose[1] + np.rad2deg(np.arctan(y_dist / x_dist))
+            # else:
+            #     self.angle_to_target = 90 + relative_pose[1] + np.rad2deg(np.arctan(y_dist / x_dist))
+            # self.angle_to_goal_pose = relative_pose[1]
+            self.angle_to_target = - np.rad2deg(np.arctan(y_dist/x_dist))
+            self.angle_to_goal_pose = relative_pose[1]
+            self.target_in_sight = True
+
+    def get_commands(self):
+        v = 0.0
+        w = 0.0
+        if not self.done:
+            if np.abs(self.distance_to_target) < 0.01:
+                print("close to goal")
+                print("angle_to_goal", self.angle_to_goal_pose)
+                if np.abs(self.angle_to_goal_pose) < 1:
+                    print("reached goal")
+                    self.done = True
+                elif self.angle_to_goal_pose < 0:
+                    w = -0.3
+                else:
+                    w = 0.3
+
+            elif np.abs(self.angle_to_target) < 1:
+                v = 0.4
+            elif self.angle_to_target < 0:
+                w = -0.4
+            else:
+                w = 0.4
+        commands = np.array([v, w])
+        self.last_commands = commands
+        return commands
+
+    def predict(self, dt):
+        if not self.done:
+            # TODO Jerome adjust this to have better estimate (find why bot moves less than predicted)
+            v_correction = 0.7
+            w_correction = 0.5
+            self.distance_to_target -= self.last_commands[0] * dt * v_correction
+            self.angle_to_target -= np.rad2deg(self.last_commands[1] * dt) * w_correction
+            self.angle_to_goal_pose -= np.rad2deg(self.last_commands[1] * dt) * w_correction
+            self.target_in_sight = False
+
 @env.unwrapped.window.event
 def on_key_press(symbol, modifiers):
     """
@@ -250,7 +314,6 @@ def update(dt):
     # found_object, relative_pose = method_that_do_vision_processing(im)
 
     # This is a temporary workaround to test only trajectory
-    found_object = True
     goal_position = np.array([2.2, 0, 2.5])  # Because duckie is at [2.5, 0. 2.5] in visual_servo.yaml env file
     goal_angle = 0  # Because duckie faces 0 angle in visual_servo.yaml env file
     cur_position = np.array(info["Simulator"]["cur_pos"])
@@ -265,16 +328,23 @@ def update(dt):
     relative_pose = [relative_position, relative_angle]
     np.set_printoptions(precision=2)
     # print("cur_pose:", cur_pose, "rel_pose:", relative_pose)
-    # TODO update trajectory if object is in field of view
-    # if found_object:
-    #    trajectory = get_trajectory(relative_pose)
-    # We should probably put a condition on relative pose and stop if we are really close.
+
+    if detect:
+        global trajectory
+        if trajectory is None:
+            trajectory = Trajectory()
+        trans_vec[1] = -trans_vec[1]
+        print(trans_vec, relative_pose)
+        trajectory.update(trans_vec)
+    else:
+        if trajectory is not None:
+            trajectory.predict(dt)
 
     # TODO take next step in defined trajectory
-    # if trajectory is not None:
-    #     action = trajectory.get_step()
-    # else:
-    #     print("object not found, cannot compute initial trajectory")
+    if trajectory is not None:
+        action = trajectory.get_step()
+    else:
+        print("object not found, cannot compute initial trajectory")
 
     obs, reward, done, info = env.step(action)
 
