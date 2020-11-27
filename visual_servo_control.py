@@ -91,6 +91,63 @@ params.minDistBetweenBlobs = 1
 detector = cv2.SimpleBlobDetector_create(params)
 
 
+def calc_circle_pattern(height, width):
+    """
+    Calculates the physical locations of each dot in the pattern.
+    Args:
+        height (`int`): number of rows in the pattern
+        width (`int`): number of columns in the pattern
+    """
+    # check if the version generated before is still valid, if not, or first time called, create
+
+    circlepattern_dist = 0.0125
+    circlepattern = np.zeros([height * width, 3])
+    for i in range(0, width):
+        for j in range(0, height):
+            circlepattern[i + j * width, 0] = circlepattern_dist * i - \
+                                              circlepattern_dist * (width - 1) / 2
+            circlepattern[i + j * width, 1] = circlepattern_dist * j - \
+                                              circlepattern_dist * (height - 1) / 2
+    return circlepattern
+
+
+def get_pose(obs):
+    camera_matrix = np.array([
+        305.5718893575089,
+        0,
+        303.0797142544728,
+        0,
+        308.8338858195428,
+        231.8845403702499,
+        0,
+        0,
+        1,
+    ]).reshape((3, 3))
+    distortion_coefs = np.array([-0.2, 0.0305, 0.0005859930422629722, -0.0006697840226199427, 0]).reshape((1, 5))
+    new_camera_matrix, b = cv2.getOptimalNewCameraMatrix(camera_matrix, distortion_coefs, (640, 480), 0)
+
+    (detection, centers) = cv2.findCirclesGrid(obs,
+                                               patternSize=(8, 3),
+                                               flags=cv2.CALIB_CB_SYMMETRIC_GRID,
+                                               blobDetector=detector)
+
+    if detection:
+        object_points = calc_circle_pattern(3, 8)
+        image_points = centers[:, 0, :]
+        success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=object_points,
+                                                                    imagePoints=image_points,
+                                                                    cameraMatrix=new_camera_matrix,
+                                                                    distCoeffs=np.array([0, 0, 0, 0, 0]))
+
+        x = translation_vector[2][0]
+        y = translation_vector[0][0]
+        theta = np.rad2deg(rotation_vector[1][0])
+        return (detection, [np.array([y, 0, x]), theta] )
+    else:
+        return (detection, np.array([]))
+
+
+
 def update(dt):
     """
     This function is called at every frame to handle
@@ -135,22 +192,18 @@ def update(dt):
     obs, reward, done, info = env.step(action)
 
     # obs is a np.array, im is PIL image, use whatever you need
-    im = Image.fromarray(obs)
+    # im = Image.fromarray(obs)
     # TODO im is a np.array of the image, get relative pose from that it could also be obtained using a built-in package
 
-    (detection, centers) = cv2.findCirclesGrid(obs,
-                                               patternSize=(8, 3),
-                                               flags=cv2.CALIB_CB_SYMMETRIC_GRID,
-                                               blobDetector=detector)
+    (detect, trans_vec) = get_pose(obs)
+    print(detect, trans_vec)
 
-    print(detection)
     # Only for debugging, slows things down considerably and is not necessary
     # if detection:
     #     cv2.drawChessboardCorners(obs,
     #                               (8, 3), centers, detection)
     #     im = Image.fromarray(obs)
     #     im.save("circle_grid.png")
-    print('hello')
 
     # found_object, relative_pose = method_that_do_vision_processing(im)
 
@@ -169,13 +222,11 @@ def update(dt):
     relative_angle = goal_angle - cur_angle_deg
     relative_pose = [relative_position, relative_angle]
     np.set_printoptions(precision=2)
-    #print("cur_pose:", cur_pose, "rel_pose:", relative_pose)
+    # print("cur_pose:", cur_pose, "rel_pose:", relative_pose)
     # TODO update trajectory if object is in field of view
-    #if found_object:
+    # if found_object:
     #    trajectory = get_trajectory(relative_pose)
     # We should probably put a condition on relative pose and stop if we are really close.
-
-
 
     # TODO take next step in defined trajectory
     # if trajectory is not None:
@@ -186,7 +237,6 @@ def update(dt):
     obs, reward, done, info = env.step(action)
 
     if key_handler[key.RETURN]:
-
         im = Image.fromarray(obs)
 
         im.save("screen.png")
