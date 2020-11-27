@@ -111,7 +111,7 @@ def calc_circle_pattern(height, width):
     return circlepattern
 
 
-def get_pose(obs, option):
+def get_pose(obs, distance, option):
     '''option 0 a 3 pour differentes combinaisons de camera_matrix et distortion coefficients'''
     camera_matrix = np.array([
         305.5718893575089,
@@ -131,61 +131,51 @@ def get_pose(obs, option):
                                                patternSize=(8, 3),
                                                flags=cv2.CALIB_CB_SYMMETRIC_GRID,
                                                blobDetector=detector)
-
+    object_points = calc_circle_pattern(3, 8)
     if detection and option == 0:
-        object_points = calc_circle_pattern(3, 8)
         image_points = centers[:, 0, :]
         success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=object_points,
                                                                     imagePoints=image_points,
                                                                     cameraMatrix=new_camera_matrix,
                                                                     distCoeffs=np.array([0, 0, 0, 0, 0]))
-
-        x = translation_vector[2][0]
-        y = translation_vector[0][0]
-        theta = np.rad2deg(rotation_vector[1][0])
-        return (detection, [np.array([y, 0, x]), theta] )
-
     elif detection and option == 1:
-        object_points = calc_circle_pattern(3, 8)
         image_points = centers[:, 0, :]
         success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=object_points,
                                                                     imagePoints=image_points,
                                                                     cameraMatrix=new_camera_matrix,
                                                                     distCoeffs=distortion_coefs)
-
-        x = translation_vector[2][0]
-        y = translation_vector[0][0]
-        theta = np.rad2deg(rotation_vector[1][0])
-        return (detection, [np.array([y, 0, x]), theta] )
-
     elif detection and option == 2:
-        object_points = calc_circle_pattern(3, 8)
         image_points = centers[:, 0, :]
         success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=object_points,
                                                                     imagePoints=image_points,
                                                                     cameraMatrix=camera_matrix,
-                                                                    distCoeffs=np.array([0, 0, 0, 0, 0])   )
-
-        x = translation_vector[2][0]
-        y = translation_vector[0][0]
-        theta = np.rad2deg(rotation_vector[1][0])
-        return (detection, [np.array([y, 0, x]), theta] )
-
+                                                                    distCoeffs=np.array([0,0,0,0,0]))
     elif detection and option == 3:
-        object_points = calc_circle_pattern(3, 8)
         image_points = centers[:, 0, :]
         success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=object_points,
                                                                     imagePoints=image_points,
                                                                     cameraMatrix=camera_matrix,
                                                                     distCoeffs=distortion_coefs)
-
-        x = translation_vector[2][0]
-        y = translation_vector[0][0]
-        theta = np.rad2deg(rotation_vector[1][0])
-        return (detection, [np.array([y, 0, x]), theta] )
-
     else:
         return (detection, np.array([]))
+
+    theta = rotation_vector[1][0]
+
+    x_global = translation_vector[2][0]
+    y_global = translation_vector[0][0]
+    z_global = translation_vector[1][0]
+
+    x_but_global = x_global - distance
+    y_but_global = y_global
+    z_but_global = z_global
+
+    x_but_robot = x_but_global * np.cos(theta)
+    y_but_robot = y_but_global * np.cos(theta)
+    z_but_robot = z_but_global
+
+
+    return (detection, [np.array([y_but_robot, z_but_robot, x_but_robot]), np.rad2deg(theta)])
+
 
 
 
@@ -237,8 +227,9 @@ def update(dt):
     # im = Image.fromarray(obs)
     # TODO im is a np.array of the image, get relative pose from that it could also be obtained using a built-in package
 
-    # (detect, trans_vec) = get_pose(obs, 0)
-    # print(f'option0 : {trans_vec}')
+    (detect, trans_vec) = get_pose(obs, 0.1, 3)
+    if detect:
+        print(f'option0 : {trans_vec}')
 
     # (detect, trans_vec) = get_pose(obs, 1)
     # print(f'option1 : {trans_vec}')
