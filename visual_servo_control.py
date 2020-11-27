@@ -196,7 +196,6 @@ def update(dt):
     # TODO im is a np.array of the image, get relative pose from that it could also be obtained using a built-in package
 
     (detect, trans_vec) = get_pose(obs)
-
     print(detect, trans_vec)
 
     # Only for debugging, slows things down considerably and is not necessary
