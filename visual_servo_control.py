@@ -199,8 +199,6 @@ def update(dt):
 
     print(detect, trans_vec)
 
-
-
     # Only for debugging, slows things down considerably and is not necessary
     # if detection:
     #     cv2.drawChessboardCorners(obs,
