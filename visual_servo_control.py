@@ -211,7 +211,6 @@ def update(dt):
         action = np.array([0, 0])
 
 
-
     v1 = action[0]
     v2 = action[1]
     # # Limit radius of curvature
