@@ -104,7 +104,7 @@ class PoseEstimator:
         y_but_robot = y_but_global * np.cos(theta)
         z_but_robot = z_but_global
 
-        return detection, (np.array([y_but_robot, z_but_robot, x_but_robot]), np.rad2deg(theta))
+        return detection, (np.array([y_but_robot, z_but_robot, x_but_robot]), -np.rad2deg(theta))
 
     def _calc_circle_pattern(self):
         """
