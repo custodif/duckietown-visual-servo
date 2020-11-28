@@ -50,7 +50,7 @@ def main(duckie_env: DuckietownEnv, debug: bool):
     trajectory = Trajectory()
 
     @duckie_env.unwrapped.window.event
-    def on_key_press(symbol):
+    def on_key_press(symbol, modifier):
         """
         This handler processes keyboard commands that
         control the simulation
