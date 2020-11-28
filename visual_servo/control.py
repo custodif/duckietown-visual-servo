@@ -6,10 +6,10 @@ from typing import Tuple
 
 import numpy as np
 
-from visual_servo_config import (ANGLE_THRESHOLD, DISTANCE_THRESHOLD,
-                                 FINAL_ANGLE_THRESHOLD,
-                                 V_CONSTANT, V_CORRECTION, W_CONSTANT,
-                                 W_CORRECTION)
+from config import (ANGLE_THRESHOLD, DISTANCE_THRESHOLD,
+                    FINAL_ANGLE_THRESHOLD,
+                    V_CONSTANT, V_CORRECTION, W_CONSTANT,
+                    W_CORRECTION)
 
 logger = logging.getLogger(__name__)
 logger.setLevel("INFO")
