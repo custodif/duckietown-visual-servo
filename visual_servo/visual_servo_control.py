@@ -7,6 +7,7 @@ from typing import Tuple
 import numpy as np
 
 from visual_servo_config import (ANGLE_THRESHOLD, DISTANCE_THRESHOLD,
+                                 FINAL_ANGLE_THRESHOLD,
                                  V_CONSTANT, V_CORRECTION, W_CONSTANT,
                                  W_CORRECTION)
 
@@ -74,7 +75,7 @@ class Trajectory:
         w = 0.0
         if not self.done:
             if np.abs(self.distance_to_target) < DISTANCE_THRESHOLD:
-                if np.abs(self.angle_to_goal_pose) < 1:
+                if np.abs(self.angle_to_goal_pose) < FINAL_ANGLE_THRESHOLD:
                     logger.info("reached goal")
                     self.done = True
                 elif self.angle_to_goal_pose < 0:
