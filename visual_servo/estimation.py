@@ -16,6 +16,7 @@ class PoseEstimator:
                  min_dist_between_blobs: int,
                  height: int,
                  width: int,
+                 circle_pattern_dist: float,
                  target_distance: float,
                  camera_mode: int):
         """
@@ -25,6 +26,7 @@ class PoseEstimator:
             min_dist_between_blobs: minimum space between blob
             height: number of rows in circle pattern
             width: number of columns in circle pattern
+            circle_pattern_dist: distance between circles in pattern
             target_distance: target goal to bumper
             camera_mode: int from 0 to 3, temp solution for debugging
         """
@@ -32,6 +34,7 @@ class PoseEstimator:
         params.minArea = min_area
         params.minDistBetweenBlobs = min_dist_between_blobs
         self.detector = cv2.SimpleBlobDetector_create(params)
+        self.circle_pattern_dist = circle_pattern_dist
         self.height = height
         self.width = width
         self.circle_pattern = self._calc_circle_pattern()
@@ -39,12 +42,13 @@ class PoseEstimator:
         self.camera_matrix = None
         self.distortion_coefs = None
         self.initialize_camera_matrix(camera_mode)
+        self.counter = 0
 
     def initialize_camera_matrix(self, camera_mode: int):
         """
         Temporary methods to try different values for camera matrix and distortion coefs
         Args:
-            camera_mode: int from 0 to 3 to choose from the 4 options
+            camera_mode: int from 0 to 4 to choose from the 5 options
         """
         # TODO find the best mode and always use it.
         # camera matrix and distortion_coefs should be given as arguments to the constructor if available instead
@@ -56,17 +60,24 @@ class PoseEstimator:
         new_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(camera_matrix, distortion_coefs, (640, 480), 0)
 
         if camera_mode == 0:
-            self.distortion_coefs = np.array([0, 0, 0, 0, 0])
             self.camera_matrix = new_camera_matrix
+            self.distortion_coefs = np.array([0., 0., 0., 0., 0.]).reshape((1, 5))
         elif camera_mode == 1:
-            self.distortion_coefs = distortion_coefs
             self.camera_matrix = new_camera_matrix
+            self.distortion_coefs = distortion_coefs
         elif camera_mode == 2:
             self.camera_matrix = camera_matrix
-            self.distortion_coefs = np.array([0, 0, 0, 0, 0])
+            self.distortion_coefs = np.array([0., 0., 0., 0., 0.]).reshape((1, 5))
         elif camera_mode == 3:
             self.camera_matrix = camera_matrix
             self.distortion_coefs = distortion_coefs
+        elif camera_mode == 4:
+            self.camera_matrix = np.array([307.7379294605756, 0, 329.692367951685,
+                                          0, 314.987773443905, 244.4605588877848,
+                                          0, 0, 1]).reshape((3, 3))
+            self.distortion_coefs = np.array(
+                [-0.2565888993516047, 0.04481160508242147, -0.00505275149956019, 0.00130856936797665, 0]).reshape(
+                (1, 5))
 
     def get_pose(self, obs: np.array) -> Tuple[bool, Optional[Tuple[np.array, float]]]:
         """
@@ -81,36 +92,30 @@ class PoseEstimator:
                                                  patternSize=(self.width, self.height),
                                                  flags=cv2.CALIB_CB_SYMMETRIC_GRID,
                                                  blobDetector=self.detector)
+
         if detection:
             image_points = centers[:, 0, :]
             _, rotation_vector, translation_vector = cv2.solvePnP(objectPoints=self.circle_pattern,
                                                                   imagePoints=image_points,
                                                                   cameraMatrix=self.camera_matrix,
                                                                   distCoeffs=self.distortion_coefs)
+
         else:
             return detection, None
-
         theta = rotation_vector[1][0]
+        x_bumper = translation_vector[0][0]
+        y_bumper = translation_vector[2][0]
 
-        x_global = translation_vector[2][0]
-        y_global = translation_vector[0][0]
-        z_global = translation_vector[1][0]
+        y_target = y_bumper - self.target_distance * np.cos(theta)
+        x_target = x_bumper + self.target_distance * np.sin(theta)
 
-        x_but_global = x_global - self.target_distance
-        y_but_global = y_global
-        z_but_global = z_global
-
-        x_but_robot = x_but_global * np.cos(theta)
-        y_but_robot = y_but_global * np.cos(theta)
-        z_but_robot = z_but_global
-
-        return detection, (np.array([y_but_robot, z_but_robot, x_but_robot]), -np.rad2deg(theta))
+        return detection, (np.array([y_target, 0, x_target]), -np.rad2deg(theta))
 
     def _calc_circle_pattern(self):
         """
         Calculates the physical locations of each dot in the pattern.
         """
-        circle_pattern_dist = 0.0125
+        circle_pattern_dist = self.circle_pattern_dist
         circle_pattern = np.zeros([self.height * self.width, 3])
         for i in range(self.width):
             for j in range(self.height):
